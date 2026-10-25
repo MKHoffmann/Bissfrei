@@ -1,0 +1,35 @@
+name: Bissfrei
+options:
+  bundleIdPrefix: io.github.bissfrei
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: de
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "2"
+    DEVELOPMENT_LANGUAGE: de
+targets:
+  Bissfrei:
+    type: application
+    platform: iOS
+    sources:
+      - path: Bissfrei
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.bissfrei.app
+        PRODUCT_NAME: Bissfrei
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Bissfrei
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UIUserInterfaceStyle: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_PREVIEWS: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""

@@ -1,0 +1,101 @@
+name: iOS-App bauen
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Neueste Xcode-Version wählen
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Xcode-Version anzeigen
+        run: xcodebuild -version
+
+      - name: XcodeGen installieren
+        run: brew install xcodegen
+
+      - name: Xcode-Projekt erzeugen
+        run: xcodegen generate
+
+      - name: App bauen (unsigniert)
+        run: |
+          set +e
+          xcodebuild \
+            -project Bissfrei.xcodeproj \
+            -target Bissfrei \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build > build.log 2>&1
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "## ❌ Build fehlgeschlagen" >> "$GITHUB_STEP_SUMMARY"
+            echo "Kopiere diese Fehler in den Chat mit Claude:" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -E "error:" build.log | sed 's|.*/Bissfrei/Bissfrei/|Bissfrei/|' | sort -u | head -60 >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "----- Fehler -----"
+            grep -E "error:" build.log | sort -u | head -60
+            echo "----- Ende des Logs -----"
+            tail -40 build.log
+            exit $STATUS
+          fi
+          grep -E "BUILD SUCCEEDED" build.log
+
+      - name: Build-Log sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
+
+      - name: IPA packen
+        run: |
+          mkdir -p Payload
+          cp -R build/Release-iphoneos/Bissfrei.app Payload/
+          zip -qry Bissfrei.ipa Payload
+          ls -lh Bissfrei.ipa
+
+      - name: IPA als Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bissfrei-ipa
+          path: Bissfrei.ipa
+
+      - name: Release „ios-build“ aktualisieren
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete ios-build --yes --cleanup-tag || true
+          gh release create ios-build Bissfrei.ipa \
+            --target "${{ github.sha }}" \
+            --title "Bissfrei – Build ${{ github.run_number }}" \
+            --notes "Unsignierte IPA zum Sideloading mit SideStore. Gebaut aus Commit ${{ github.sha }}." \
+            --latest
+
+      - name: Zusammenfassung
+        run: |
+          echo "## ✅ Build erfolgreich" >> "$GITHUB_STEP_SUMMARY"
+          echo "Die IPA liegt unter **Releases → ios-build** (auch direkt am iPhone ladbar) und als Artefakt dieses Laufs." >> "$GITHUB_STEP_SUMMARY"
